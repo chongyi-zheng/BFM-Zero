@@ -69,7 +69,9 @@ uv sync
 
 ## Data
 
-- **Motion data**: Included via Git LFS in `humanoidverse/data/` after `git lfs pull`. `lafan_29dof.pkl` is for evaluation; `lafan_29dof_10s-clipped.pkl` is for training. 
+- **Motion data**: Included via Git LFS in `humanoidverse/data/` after `git lfs pull`. `lafan_29dof.pkl` is for evaluation; `lafan_29dof_10s-clipped.pkl` is for training.
+- If you are unsure about the data format, please check the discussion in
+  [Issue #12](https://github.com/LeCAR-Lab/BFM-Zero/issues/12).
 
 
 ## Training
