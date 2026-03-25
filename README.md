@@ -69,7 +69,9 @@ uv sync
 
 ## Data
 
-- **Motion data**: Included via Git LFS in `humanoidverse/data/` after `git lfs pull`. `lafan_29dof.pkl` is for evaluation; `lafan_29dof_10s-clipped.pkl` is for training. 
+- **Motion data**: Included via Git LFS in `humanoidverse/data/` after `git lfs pull`. `lafan_29dof.pkl` is for evaluation; `lafan_29dof_10s-clipped.pkl` is for training.
+- If you are unsure about the data format, please check the discussion in
+  [Issue #12](https://github.com/LeCAR-Lab/BFM-Zero/issues/12).
 
 
 ## Training
@@ -79,6 +81,7 @@ uv sync
 ```bash
 uv run python -m humanoidverse.train
 ```
+Note: change `buffer_device` to "cuda:0" if you have larger vRAM.
 
 ### Main parameters
 
@@ -144,6 +147,7 @@ uv run python -m humanoidverse.reward_inference --help
 
 - `--model_folder`: Path to the trained model directory (must contain `checkpoint/` and `config.json`).
 - `--data_path` (optional): Override the default LaFan data path.
+- `--simulator`: `isaacsim` (default) or `mujoco`. **Use `--simulator mujoco` to run without Isaac Lab** (MuJoCo only; output is directly usable for sim2sim visualization).
 - `--headless` (default: `True`): Run without GUI; use `--no-headless` to show the viewer.
 - `--save_mp4`: Save rendered videos.
 
