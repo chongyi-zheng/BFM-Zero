@@ -292,6 +292,55 @@ class SequetialFMap(nn.Module):
         return torch.stack(predictions)
 
 
+class OneStepForwardArchiConfig(BaseConfig):
+    name: tp.Literal["OneStepForwardArchi"] = "OneStepForwardArchi"
+    hidden_dim: int = 1024
+    hidden_layers: int = 1
+    embedding_layers: int = 2
+    num_parallel: int = 2
+    input_filter: NNFilter = IdentityInputFilterConfig()
+
+    def build(self, obs_space, z_dim: int, action_dim: int) -> torch.nn.Module:
+        return OneStepForwardMap(obs_space, z_dim, action_dim, self)
+
+
+class OneStepForwardMap(nn.Module):
+    """Forward map for one-step FB: F(s, a) -> z_dim without latent z conditioning."""
+
+    def __init__(self, obs_space, z_dim: int, action_dim: int, cfg: "OneStepForwardArchiConfig") -> None:
+        super().__init__()
+
+        self.input_filter = cfg.input_filter.build(obs_space)
+        filtered_space = self.input_filter.output_space
+
+        assert isinstance(filtered_space, gymnasium.spaces.Box), (
+            f"filtered_space must be a Box space, got {type(filtered_space)}. Did you forget to set input_filter?"
+        )
+        assert len(filtered_space.shape) == 1, "filtered_space must have a 1D shape"
+        obs_dim = filtered_space.shape[0]
+        self.cfg = cfg
+        self.z_dim = z_dim
+        self.num_parallel = cfg.num_parallel
+        self.hidden_dim = cfg.hidden_dim
+
+        # Single (obs, action) embedding; simple_embedding outputs hidden_dim // 2
+        self.embed_sa = simple_embedding(obs_dim + action_dim, cfg.hidden_dim, cfg.embedding_layers, cfg.num_parallel)
+
+        seq = []
+        for _ in range(cfg.hidden_layers):
+            seq += [linear(cfg.hidden_dim // 2, cfg.hidden_dim // 2, cfg.num_parallel), nn.ReLU()]
+        seq += [linear(cfg.hidden_dim // 2, z_dim, cfg.num_parallel)]
+        self.Fs = nn.Sequential(*seq)
+
+    def forward(self, obs: torch.Tensor | dict[str, torch.Tensor], action: torch.Tensor) -> torch.Tensor:
+        obs = self.input_filter(obs)
+        if self.num_parallel > 1:
+            obs = obs.expand(self.num_parallel, -1, -1)
+            action = action.expand(self.num_parallel, -1, -1)
+        sa_embedding = self.embed_sa(torch.cat([obs, action], dim=-1))
+        return self.Fs(sa_embedding)
+
+
 class SimpleActorArchiConfig(ActorArchiConfig):
     name: tp.Literal["simple"] = "simple"
     model: tp.Literal["simple"] = "simple"

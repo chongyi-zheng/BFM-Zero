@@ -6,16 +6,20 @@ from .fb.agent import FBAgent, FBModel
 from .fb_cpr.agent import FBcprAgent, FBcprModel
 from .fb_cpr_aux.agent import FBcprAuxAgent
 from .fb_cpr_aux.model import FBcprAuxModel
+from .onestep_fb_cpr_aux.agent import OneStepFBcprAuxAgent
+from .onestep_fb_cpr_aux.model import OneStepFBcprAuxModel
 
 AGENT_NAME_TO_CLASS = {
     "FBAgent": FBAgent,
     "FBcprAgent": FBcprAgent,
     "FBcprAuxAgent": FBcprAuxAgent,
+    "OneStepFBcprAuxAgent": OneStepFBcprAuxAgent,
 }
 MODEL_NAME_TO_CLASS = {
     "FBModel": FBModel,
     "FBcprModel": FBcprModel,
-    "FBcprAuxModel": FBcprAuxModel
+    "FBcprAuxModel": FBcprAuxModel,
+    "OneStepFBcprAuxModel": OneStepFBcprAuxModel,
 }
 
 

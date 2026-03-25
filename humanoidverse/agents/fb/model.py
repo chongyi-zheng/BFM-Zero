@@ -27,6 +27,8 @@ from ..nn_models import (
     ActorArchiConfig,
     BackwardArchiConfig,
     ForwardArchiConfig,
+    OneStepBackwardArchiConfig,
+    OneStepForwardArchiConfig,
     ResidualActorArchiConfig,
     SimpleActorArchiConfig,
     eval_mode,
@@ -38,8 +40,8 @@ from ..pytree_utils import tree_get_batch_size
 class FBModelArchiConfig(BaseConfig):
     z_dim: int = 100
     norm_z: bool = True
-    f: ForwardArchiConfig | ForwardFilterArchiConfig = pydantic.Field(ForwardArchiConfig(), discriminator="name")
-    b: BackwardArchiConfig | BackwardFilterArchiConfig = pydantic.Field(BackwardArchiConfig(), discriminator="name")
+    f: ForwardArchiConfig | ForwardFilterArchiConfig | OneStepForwardArchiConfig = pydantic.Field(ForwardArchiConfig(), discriminator="name")
+    b: BackwardArchiConfig | BackwardFilterArchiConfig | OneStepBackwardArchiConfig = pydantic.Field(BackwardArchiConfig(), discriminator="name")
     # Because of the "name" attribute, these two can be chosen between via strings easily
     actor: (
         ActorArchiConfig

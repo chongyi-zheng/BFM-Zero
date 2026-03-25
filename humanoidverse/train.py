@@ -43,6 +43,7 @@ from humanoidverse.agents.buffers.trajectory import TrajectoryDictBufferMultiDim
 from humanoidverse.agents.buffers.transition import DictBuffer, dtype_numpytotorch_lower_precision
 from humanoidverse.agents.fb_cpr.agent import FBcprAgentConfig
 from humanoidverse.agents.fb_cpr_aux.agent import FBcprAuxAgentConfig
+from humanoidverse.agents.onestep_fb_cpr_aux.agent import OneStepFBcprAuxAgentConfig
 from humanoidverse.agents.misc.loggers import CSVLogger
 from humanoidverse.agents.utils import EveryNStepsChecker, get_local_workdir, set_seed_everywhere
 
@@ -65,7 +66,7 @@ Evaluation = tp.Annotated[
     pydantic.Field(discriminator="name"),
 ]
 
-Agent = FBcprAgentConfig | FBcprAuxAgentConfig
+Agent = FBcprAgentConfig | FBcprAuxAgentConfig | OneStepFBcprAuxAgentConfig
 
 
 class TrainConfig(BaseConfig):
