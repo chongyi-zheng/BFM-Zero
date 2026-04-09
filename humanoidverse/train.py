@@ -52,7 +52,8 @@ REWARD_EVAL_LOG_FILENAME = "reward_eval_log.csv"
 TRACKING_EVAL_LOG_FILENAME = "tracking_eval_log.csv"
 
 RUN_STAMP = time.strftime("%m%d-%H%M")
-CHECKPOINT_DIR_NAME = f"checkpoint_OneStep-BFM-Zero-{RUN_STAMP}"
+RUN_NAME = f"OneStep-BFM-Zero-{RUN_STAMP}"
+CHECKPOINT_DIR_NAME = "checkpoint"
 
 _ENC_CONFIG_TO_EXPERT_DATA_OBS_MAPPER = {
     HumanoidVerseIsaacConfig: None,
@@ -185,7 +186,7 @@ def create_agent_or_load_checkpoint(work_dir: Path, cfg: TrainConfig, agent_buil
 
 def init_wandb(cfg: TrainConfig):
     exp_name = "OneStep-BFM-Zero"
-    wandb_name = f"{exp_name}-{RUN_STAMP}"
+    wandb_name = RUN_NAME
     wandb_config = cfg.model_dump()
     wandb.init(
         entity=cfg.wandb_ename,
@@ -704,7 +705,7 @@ def train_bfm_zero():
             make_config_g1env_compatible=False,
             root_height_obs=True
         ),
-        work_dir='/data3/yitangl/onestepbfmzero',
+        work_dir=f'/data3/yitangl/onestepbfmzero/{RUN_NAME}',
         seed=4728,
         online_parallel_envs=1024,
         log_every_updates=384000,
