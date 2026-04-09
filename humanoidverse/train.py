@@ -51,7 +51,8 @@ TRAIN_LOG_FILENAME = "train_log.txt"
 REWARD_EVAL_LOG_FILENAME = "reward_eval_log.csv"
 TRACKING_EVAL_LOG_FILENAME = "tracking_eval_log.csv"
 
-CHECKPOINT_DIR_NAME = "checkpoint"
+RUN_STAMP = time.strftime("%m%d-%H%M")
+CHECKPOINT_DIR_NAME = f"checkpoint_OneStep-BFM-Zero-{RUN_STAMP}"
 
 _ENC_CONFIG_TO_EXPERT_DATA_OBS_MAPPER = {
     HumanoidVerseIsaacConfig: None,
@@ -184,9 +185,17 @@ def create_agent_or_load_checkpoint(work_dir: Path, cfg: TrainConfig, agent_buil
 
 def init_wandb(cfg: TrainConfig):
     exp_name = "OneStep-BFM-Zero"
-    wandb_name = exp_name
+    wandb_name = f"{exp_name}-{RUN_STAMP}"
     wandb_config = cfg.model_dump()
-    wandb.init(entity=cfg.wandb_ename, project=cfg.wandb_pname, group=cfg.wandb_gname, name=wandb_name, config=wandb_config, dir="./_wandb")
+    wandb.init(
+        entity=cfg.wandb_ename,
+        project=cfg.wandb_pname,
+        group=cfg.wandb_gname,
+        name=wandb_name,
+        config=wandb_config,
+        dir="./_wandb",
+        resume="never",
+    )
 
 
 class Workspace:
