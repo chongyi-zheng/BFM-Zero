@@ -43,7 +43,6 @@ from humanoidverse.agents.buffers.trajectory import TrajectoryDictBufferMultiDim
 from humanoidverse.agents.buffers.transition import DictBuffer, dtype_numpytotorch_lower_precision
 from humanoidverse.agents.fb_cpr.agent import FBcprAgentConfig
 from humanoidverse.agents.fb_cpr_aux.agent import FBcprAuxAgentConfig
-from humanoidverse.agents.onestep_fb_cpr_aux.agent import OneStepFBcprAuxAgentConfig, OneStepFBcprAuxAgentTrainConfig
 from humanoidverse.agents.misc.loggers import CSVLogger
 from humanoidverse.agents.utils import EveryNStepsChecker, get_local_workdir, set_seed_everywhere
 
@@ -52,8 +51,7 @@ REWARD_EVAL_LOG_FILENAME = "reward_eval_log.csv"
 TRACKING_EVAL_LOG_FILENAME = "tracking_eval_log.csv"
 
 RUN_STAMP = time.strftime("%m%d-%H%M")
-RUN_NAME = f"OneStep-BFM-Zero-{RUN_STAMP}"
-CHECKPOINT_DIR_NAME = "checkpoint"
+CHECKPOINT_DIR_NAME = f"checkpoint_BFM-Zero-{RUN_STAMP}"
 
 _ENC_CONFIG_TO_EXPERT_DATA_OBS_MAPPER = {
     HumanoidVerseIsaacConfig: None,
@@ -68,7 +66,7 @@ Evaluation = tp.Annotated[
     pydantic.Field(discriminator="name"),
 ]
 
-Agent = FBcprAgentConfig | FBcprAuxAgentConfig | OneStepFBcprAuxAgentConfig
+Agent = FBcprAgentConfig | FBcprAuxAgentConfig
 
 
 class TrainConfig(BaseConfig):
@@ -151,9 +149,6 @@ class TrainConfig(BaseConfig):
                 # TODO how to do checks like these in pydantic or more systematically?
                 raise ValueError("FBcprAgent requires expert data to be provided (motions and motions_root)")
 
-        if isinstance(self.agent, OneStepFBcprAuxAgentConfig) and not self.use_trajectory_buffer:
-            raise ValueError("OneStepFBcprAuxAgent requires use_trajectory_buffer=True to sample next.action.")
-
         # Ensure all evaluations have unique log names
         if isinstance(self.evaluations, list):
             log_names = set()
@@ -185,8 +180,8 @@ def create_agent_or_load_checkpoint(work_dir: Path, cfg: TrainConfig, agent_buil
 
 
 def init_wandb(cfg: TrainConfig):
-    exp_name = "OneStep-BFM-Zero"
-    wandb_name = RUN_NAME
+    exp_name = "BFM-Zero"
+    wandb_name = f"{exp_name}-{RUN_STAMP}"
     wandb_config = cfg.model_dump()
     wandb.init(
         entity=cfg.wandb_ename,
@@ -311,9 +306,6 @@ class Workspace:
                 # TODO this interface should be more elegant (how to inform buffer what keys are coming in / need to be sampled?)
                 if isinstance(self.cfg.agent, (FBcprAuxAgentConfig)):
                     output_key_t.append("aux_rewards")
-                output_key_tp1 = ["observation", "terminated"]
-                if isinstance(self.cfg.agent, OneStepFBcprAuxAgentConfig):
-                    output_key_tp1.append("action")
 
                 replay_buffer["train"] = TrajectoryDictBufferMultiDim(
                     capacity=self.cfg.buffer_size // self.cfg.online_parallel_envs,  # make sure to divide by num_envs
@@ -321,7 +313,7 @@ class Workspace:
                     n_dim=2,
                     end_key="truncated",
                     output_key_t=output_key_t,  # TODO(team): fix this. in principle we could avoid to sample qpos, qvel for training but we need them for reward evaluation
-                    output_key_tp1=output_key_tp1,
+                    output_key_tp1=["observation", "terminated"],
                 )
             else:
                 replay_buffer["train"] = DictBuffer(capacity=self.cfg.buffer_size, device=self.cfg.buffer_device)
@@ -602,23 +594,24 @@ class Workspace:
 
 
 def train_bfm_zero():
-    from humanoidverse.agents.onestep_fb_cpr_aux.model import OneStepFBcprAuxModelArchiConfig, OneStepFBcprAuxModelConfig
-    from humanoidverse.agents.nn_models import ForwardArchiConfig, BackwardArchiConfig, ActorArchiConfig, DiscriminatorArchiConfig, RewardNormalizerConfig, OneStepForwardArchiConfig
+    from humanoidverse.agents.fb_cpr_aux.model import FBcprAuxModelArchiConfig, FBcprAuxModelConfig
+    from humanoidverse.agents.fb_cpr_aux.agent import FBcprAuxAgentTrainConfig
+    from humanoidverse.agents.nn_models import ForwardArchiConfig, BackwardArchiConfig, ActorArchiConfig, DiscriminatorArchiConfig, RewardNormalizerConfig
     from humanoidverse.agents.normalizers import ObsNormalizerConfig, BatchNormNormalizerConfig
     from humanoidverse.agents.nn_filters import DictInputFilterConfig
 
     cfg = TrainConfig(
         name='TrainConfig',
-        agent=OneStepFBcprAuxAgentConfig(
-            name='OneStepFBcprAuxAgent',
-            model=OneStepFBcprAuxModelConfig(
-                name='OneStepFBcprAuxModel',
+        agent=FBcprAuxAgentConfig(
+            name='FBcprAuxAgent',
+            model=FBcprAuxModelConfig(
+                name='FBcprAuxModel',
                 device='cuda',
-                archi=OneStepFBcprAuxModelArchiConfig(
-                    name='OneStepFBcprAuxModelArchiConfig',
+                archi=FBcprAuxModelArchiConfig(
+                    name='FBcprAuxModelArchiConfig',
                     z_dim=256,
                     norm_z=True,
-                    f=OneStepForwardArchiConfig(name='OneStepForwardArchi', hidden_dim=2048, hidden_layers=6, embedding_layers=2, num_parallel=2, input_filter=DictInputFilterConfig(name='DictInputFilterConfig', key=['state', 'privileged_state', 'last_action', 'history_actor'])),
+                    f=ForwardArchiConfig(name='ForwardArchi', hidden_dim=2048, model='residual', hidden_layers=6, embedding_layers=2, num_parallel=2, ensemble_mode='batch', input_filter=DictInputFilterConfig(name='DictInputFilterConfig', key=['state', 'privileged_state', 'last_action', 'history_actor'])),
                     b=BackwardArchiConfig(name='BackwardArchi', hidden_dim=256, hidden_layers=1, norm=True, input_filter=DictInputFilterConfig(name='DictInputFilterConfig', key=['state', 'privileged_state'])),
                     actor=ActorArchiConfig(name='actor', model='residual', hidden_dim=2048, hidden_layers=6, embedding_layers=2, input_filter=DictInputFilterConfig(name='DictInputFilterConfig', key=['state', 'last_action', 'history_actor'])),
                     critic=ForwardArchiConfig(name='ForwardArchi', hidden_dim=2048, model='residual', hidden_layers=6, embedding_layers=2, num_parallel=2, ensemble_mode='batch', input_filter=DictInputFilterConfig(name='DictInputFilterConfig', key=['state', 'privileged_state', 'last_action', 'history_actor'])),
@@ -641,8 +634,8 @@ def train_bfm_zero():
                 amp=False,
                 norm_aux_reward=RewardNormalizerConfig(name='RewardNormalizer', translate=False, scale=True)
             ),
-            train=OneStepFBcprAuxAgentTrainConfig(
-                name='OneStepFBcprAuxAgentTrainConfig',
+            train=FBcprAuxAgentTrainConfig(
+                name='FBcprAuxAgentTrainConfig',
                 lr_f=0.0003,
                 lr_b=1e-05,
                 lr_actor=0.0003,
@@ -705,7 +698,7 @@ def train_bfm_zero():
             make_config_g1env_compatible=False,
             root_height_obs=True
         ),
-        work_dir=f'/data3/yitangl/onestepbfmzero/{RUN_NAME}',
+        work_dir='results/bfmzero-isaac',
         seed=4728,
         online_parallel_envs=1024,
         log_every_updates=384000,
@@ -722,8 +715,8 @@ def train_bfm_zero():
         prioritization_mode='exp',
         use_trajectory_buffer=True,
         buffer_size=5120000,
-        use_wandb=True,
-        wandb_ename='huamnoid-water-holding',  # your wandb entity (username/team), empty = default from wandb login
+        use_wandb=False,
+        wandb_ename='yitangl',  # your wandb entity (username/team), empty = default from wandb login
         wandb_gname='bfmzero-isaac',  # run group
         wandb_pname='bfmzero-isaac',  # your wandb project name
         load_isaac_expert_data=True,
